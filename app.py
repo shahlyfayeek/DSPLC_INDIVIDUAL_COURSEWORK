@@ -46,7 +46,7 @@ df = load_data()
 # SIDEBAR NAVIGATION
 # ----------------------------
 st.sidebar.title("📊 Dashboard Menu")
-page = st.sidebar.radio("Go to", ["Overview", "Visualizations", "UI Elements Demo", "About"])
+page = st.sidebar.radio("Go to", ["Overview", "Visualizations", "Filters", "About"])
 
 # ----------------------------
 # PAGE: OVERVIEW
@@ -120,53 +120,43 @@ elif page == "Visualizations":
     st.dataframe(df[df["daily_vaccinations"] > threshold])
 
 # ----------------------------
-# PAGE: UI ELEMENTS DEMO
+# PAGE: Filters
 # ----------------------------
-elif page == "UI Elements Demo":
-    st.title("🧪 Streamlit UI Elements Showcase")
+elif page == "Filters":
+    st.title("🔎 Deep Dive: Data Filtering & Analysis")
 
-    if st.button("🎈 Celebrate with Balloons"):
-        st.balloons()
+    st.markdown("Use the filters below to analyze relationships between key metrics in the COVID-19 vaccination dataset.")
 
-    st.subheader("🔄 Simulated Progress Bar")
-    progress_bar = st.progress(0)
-    for percent in range(0, 101, 10):
-        time.sleep(0.05)
-        progress_bar.progress(percent)
+    # Filter by ISO code
+    iso_selected = st.selectbox("🌍 Select ISO Country Code", df["iso_code"].unique())
+    filtered_df = df[df["iso_code"] == iso_selected]
 
-    st.subheader("⏳ Simulated Loading Spinner")
-    with st.spinner("Loading health data..."):
-        time.sleep(1)
-    st.success("Data loaded successfully!")
+    # Filter by date range
+    date_range = st.slider(
+        "📅 Filter by Date Range",
+        min_value=df["date"].min().date(),
+        max_value=df["date"].max().date(),
+        value=(df["date"].min().date(), df["date"].max().date())
+    )
+    filtered_df = filtered_df[
+        (filtered_df["date"].dt.date >= date_range[0]) & (filtered_df["date"].dt.date <= date_range[1])
+    ]
 
-    min_input = st.number_input("👨‍⚕️ Set minimum daily vaccinations", min_value=0, value=1000)
-    st.write(df[df["daily_vaccinations"] > min_input])
+    # Select columns to compare
+    numeric_columns = df.select_dtypes(include='number').columns.tolist()
+    x_col = st.selectbox("📊 Select X-axis (independent variable)", numeric_columns)
+    y_col = st.selectbox("📈 Select Y-axis (dependent variable)", numeric_columns)
 
-    name = st.text_input("📝 Your name")
-    if name:
-        st.success(f"Welcome, {name}!")
+    st.markdown(f"### 📉 Relationship between `{x_col}` and `{y_col}`")
+    fig, ax = plt.subplots()
+    ax.scatter(filtered_df[x_col], filtered_df[y_col], alpha=0.6)
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+    st.pyplot(fig)
 
-    chosen_date = st.date_input("📆 Choose a date")
-    st.write(f"You picked: {chosen_date}")
+    st.subheader("📄 Filtered Data Preview")
+    st.dataframe(filtered_df)
 
-    chosen_time = st.time_input("⏰ Choose a time")
-    st.write(f"You picked: {chosen_time}")
-
-    feedback = st.text_area("💬 Feedback")
-    if feedback:
-        st.info("Thanks for your input!")
-
-    uploaded = st.file_uploader("📂 Upload a CSV file", type=["csv"])
-    if uploaded is not None:
-        try:
-            user_df = pd.read_csv(uploaded)
-            st.success("File uploaded successfully.")
-            st.dataframe(user_df.head())
-        except Exception as e:
-            st.error(f"Failed to load file: {e}")
-
-    bg_color = st.color_picker("🎨 Pick a dashboard color", "#00f900")
-    st.write(f"Selected color: {bg_color}")
 
 # ----------------------------
 # PAGE: ABOUT
@@ -178,13 +168,25 @@ elif page == "About":
 
     **Features:**
     - Visualizes COVID-19 vaccination data for Sri Lanka
-    - Interactive widgets powered by Streamlit
-    - Full use of UI components, file uploaders, filters, and more
+    - Provides filters, comparisons, and interactive visuals for data exploration
+    - Enables users to investigate trends and relationships over time
 
     **Developer:** *Shahly Fayeek*  
-    **Module Leader:** *Fouzul Hassan*  
+    **Module Leader:** *Fouzul Hassan*
     """)
 
-    st.subheader("📤 Background Image Uploader (Optional)")
-    st.info("You can replace `mybg.jpg` in your project folder with another image to customize the look!")
+    st.subheader("📚 Dataset Field Descriptions")
+    st.markdown("""
+    - **date**: Date of the observation  
+    - **iso_code**: Unique ISO 3166-1 alpha-3 country code  
+    - **people_vaccinated**: Cumulative number of individuals who have received at least one vaccine dose  
+    - **daily_vaccinations_raw**: Raw number of vaccinations reported on that date (may include backlog)  
+    - **daily_vaccinations**: Estimated number of daily vaccinations, cleaned for consistency  
+    - **people_vaccinated_per_hundred**: % of the population vaccinated (at least one dose)  
+    - **daily_vaccinations_per_million**: Number of vaccinations per one million people per day  
+    - **daily_people_vaccinated**: Number of new individuals vaccinated (first dose)  
+    - **daily_people_vaccinated_per_hundred**: Daily first-dose vaccinations per 100 people  
+    """)
+
+
 
