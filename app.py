@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import base64
 import plotly.express as px
 
 # ----------------------------
-# BACKGROUND IMAGE FUNCTION
+# BACKGROUND IMAGE FUNCTION (used only in Overview)
 # ----------------------------
 def set_bg_from_local(image_file):
     with open(image_file, "rb") as file:
@@ -14,25 +13,22 @@ def set_bg_from_local(image_file):
         f"""
         <style>
         .stApp {{
-            background-image: url("data:image/jpg;base64,{encoded}");
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("data:image/jpg;base64,{encoded}");
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
             color: white;
         }}
-        .css-1d391kg, .css-1v0mbdj, .css-1cpxqw2, .css-ffhzg2 {{
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {{
             color: white !important;
         }}
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {{
+        .stMetricValue, .stMetricLabel {{
             color: white !important;
         }}
         </style>
         """,
         unsafe_allow_html=True
     )
-
-# Uncomment to set background image
-# set_bg_from_local("bg_image.jpg")
 
 # ----------------------------
 # LOAD DATA
@@ -53,6 +49,8 @@ page = st.sidebar.radio("Go to", ["Overview", "Visualizations", "Filters", "Abou
 # PAGE: OVERVIEW
 # ----------------------------
 if page == "Overview":
+    set_bg_from_local("bg_image.jpg")  # Only applied here
+
     st.title("🇱🇰 Sri Lanka COVID-19 Vaccination Dashboard")
     st.markdown("Welcome! This dashboard provides insights into **Sri Lanka’s COVID-19 vaccination campaign** using real data.")
 
@@ -90,76 +88,6 @@ if page == "Overview":
 
     if st.checkbox("🔎 Show full dataset"):
         st.dataframe(df)
-
-
-# ----------------------------
-# PAGE: VISUALIZATIONS
-# ----------------------------
-elif page == "Visualizations":
-    st.title("📈 Interactive Visualizations")
-
-    # Metric cards for quick stats
-    total_vaccinated = df["people_vaccinated"].max()
-    avg_daily_vaccinations = df["daily_vaccinations"].mean()
-    peak_vaccination_day = df.loc[df["daily_vaccinations"].idxmax()]["date"]
-
-    st.markdown(f"""
-    <div style="display: flex; justify-content: space-around;">
-        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
-            <h4>Total Vaccinated</h4>
-            <p>{total_vaccinated:,.0f}</p>
-        </div>
-        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
-            <h4>Average Daily Vaccinations</h4>
-            <p>{avg_daily_vaccinations:,.0f}</p>
-        </div>
-        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
-            <h4>Peak Vaccination Day</h4>
-            <p>{peak_vaccination_day}</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Interactive plot: Histogram of daily vaccinations
-    fig = px.histogram(df, x="daily_vaccinations", nbins=30, title="Distribution of Daily Vaccinations")
-    st.plotly_chart(fig)
-
-    # Line chart showing vaccination trends
-    selected_column = st.selectbox("Select a column to plot over time", df.columns.tolist())
-    fig2 = px.line(df, x="date", y=selected_column, title=f"Vaccination Trends: {selected_column}")
-    st.plotly_chart(fig2)
-
-    # Scatter plot: Total vaccinations vs People vaccinated
-    fig3 = px.scatter(df, x="people_vaccinated", y="daily_vaccinations", title="Daily Vaccinations vs People Vaccinated")
-    st.plotly_chart(fig3)
-
-    # Sidebar filters
-    selected_iso = st.selectbox("🌍 Filter by ISO Code", df["iso_code"].unique())
-    st.dataframe(df[df["iso_code"] == selected_iso])
-
-    selected_cols = st.multiselect("🧩 Choose columns to display", df.columns.tolist())
-    if selected_cols:
-        st.dataframe(df[selected_cols])
-
-    date_range = st.select_slider(
-        "📅 Select date range",
-        options=df["date"].dt.strftime('%Y-%m-%d').tolist(),
-        value=(df["date"].dt.strftime('%Y-%m-%d').min(), df["date"].dt.strftime('%Y-%m-%d').max())
-    )
-    st.write(f"Date range selected: {date_range[0]} to {date_range[1]}")
-    filtered_df = df[(df["date"] >= date_range[0]) & (df["date"] <= date_range[1])]
-    st.line_chart(filtered_df.set_index("date")["daily_vaccinations"])
-
-    threshold = st.slider("📊 Filter: Daily vaccinations above", 0, int(df["daily_vaccinations"].max()), 1000)
-    st.dataframe(df[df["daily_vaccinations"] > threshold])
-
-    # Download button for filtered data
-    st.download_button(
-        label="Download Filtered Data",
-        data=filtered_df.to_csv(index=False),
-        file_name="filtered_vaccination_data.csv",
-        mime="text/csv"
-    )
 
 # ----------------------------
 # PAGE: Filters
