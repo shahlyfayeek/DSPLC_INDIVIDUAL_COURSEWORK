@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import base64
-import time
+import plotly.express as px
 
 # ----------------------------
 # BACKGROUND IMAGE FUNCTION
@@ -31,7 +31,8 @@ def set_bg_from_local(image_file):
         unsafe_allow_html=True
     )
 
-set_bg_from_local("bg_image.jpg")
+# Uncomment to set background image
+# set_bg_from_local("bg_image.jpg")
 
 # ----------------------------
 # LOAD DATA
@@ -53,33 +54,43 @@ page = st.sidebar.radio("Go to", ["Overview", "Visualizations", "Filters", "Abou
 # ----------------------------
 if page == "Overview":
     st.title("🇱🇰 Sri Lanka COVID-19 Vaccination Dashboard")
-    st.header("🔍 Explore Vaccination Trends")
-    st.markdown("This dashboard provides insights into **Sri Lanka’s COVID-19 vaccination efforts** using an official dataset.")
+    st.markdown("Welcome! This dashboard provides insights into **Sri Lanka’s COVID-19 vaccination campaign** using real data.")
 
-    st.subheader("📊 Dataset Preview")
-    st.caption("Showing the first few rows of the dataset.")
+    st.header("🔢 Key Performance Indicators (KPIs)")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("💉 Total People Vaccinated", f"{df['people_vaccinated'].max():,.0f}")
+    with col2:
+        st.metric("📆 Average Daily Vaccinations", f"{df['daily_vaccinations'].mean():,.0f}")
+    with col3:
+        peak_day = df.loc[df["daily_vaccinations"].idxmax()]["date"].strftime('%Y-%m-%d')
+        st.metric("🔝 Peak Vaccination Day", peak_day)
+
+    st.markdown("---")
+    st.subheader("📅 Vaccination Timeline")
+    start_date = df["date"].min().strftime('%Y-%m-%d')
+    end_date = df["date"].max().strftime('%Y-%m-%d')
+    st.markdown(f"Data covers the period from **{start_date}** to **{end_date}**.")
+
+    st.subheader("📈 Vaccination Trend")
+    fig = px.line(
+        df,
+        x="date",
+        y="daily_vaccinations",
+        title="Daily COVID-19 Vaccinations Over Time",
+        labels={"daily_vaccinations": "Daily Vaccinations", "date": "Date"},
+        color_discrete_sequence=["#636EFA"]
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🧾 Dataset Preview")
     st.dataframe(df.head())
 
     if st.checkbox("🔎 Show full dataset"):
         st.dataframe(df)
 
-    if st.button("📈 Show Summary Statistics"):
-        st.write(df.describe())
-
-    st.subheader("💻 Code Snippet")
-    st.code(
-        '''
-@st.cache_data
-def load_data():
-    return pd.read_csv("slcoviddata1.csv", parse_dates=["date"])
-        ''',
-        language="python"
-    )
-
-    st.subheader("📐 Vaccination Rate Formula")
-    st.latex(r'''
-    \text{Vaccination Rate} = \frac{\text{People Vaccinated}}{\text{Population}} \times 100
-    ''')
 
 # ----------------------------
 # PAGE: VISUALIZATIONS
@@ -87,19 +98,42 @@ def load_data():
 elif page == "Visualizations":
     st.title("📈 Interactive Visualizations")
 
-    numeric_columns = [
-        'people_vaccinated',
-        'daily_vaccinations_raw',
-        'daily_vaccinations',
-        'people_vaccinated_per_hundred',
-        'daily_vaccinations_per_million',
-        'daily_people_vaccinated',
-        'daily_people_vaccinated_per_hundred'
-    ]
+    # Metric cards for quick stats
+    total_vaccinated = df["people_vaccinated"].max()
+    avg_daily_vaccinations = df["daily_vaccinations"].mean()
+    peak_vaccination_day = df.loc[df["daily_vaccinations"].idxmax()]["date"]
 
-    selected_radio = st.radio("📉 Select a column to plot over time", numeric_columns)
-    st.line_chart(df.set_index("date")[selected_radio])
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-around;">
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Total Vaccinated</h4>
+            <p>{total_vaccinated:,.0f}</p>
+        </div>
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Average Daily Vaccinations</h4>
+            <p>{avg_daily_vaccinations:,.0f}</p>
+        </div>
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Peak Vaccination Day</h4>
+            <p>{peak_vaccination_day}</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # Interactive plot: Histogram of daily vaccinations
+    fig = px.histogram(df, x="daily_vaccinations", nbins=30, title="Distribution of Daily Vaccinations")
+    st.plotly_chart(fig)
+
+    # Line chart showing vaccination trends
+    selected_column = st.selectbox("Select a column to plot over time", df.columns.tolist())
+    fig2 = px.line(df, x="date", y=selected_column, title=f"Vaccination Trends: {selected_column}")
+    st.plotly_chart(fig2)
+
+    # Scatter plot: Total vaccinations vs People vaccinated
+    fig3 = px.scatter(df, x="people_vaccinated", y="daily_vaccinations", title="Daily Vaccinations vs People Vaccinated")
+    st.plotly_chart(fig3)
+
+    # Sidebar filters
     selected_iso = st.selectbox("🌍 Filter by ISO Code", df["iso_code"].unique())
     st.dataframe(df[df["iso_code"] == selected_iso])
 
@@ -119,44 +153,52 @@ elif page == "Visualizations":
     threshold = st.slider("📊 Filter: Daily vaccinations above", 0, int(df["daily_vaccinations"].max()), 1000)
     st.dataframe(df[df["daily_vaccinations"] > threshold])
 
+    # Download button for filtered data
+    st.download_button(
+        label="Download Filtered Data",
+        data=filtered_df.to_csv(index=False),
+        file_name="filtered_vaccination_data.csv",
+        mime="text/csv"
+    )
+
 # ----------------------------
 # PAGE: Filters
 # ----------------------------
 elif page == "Filters":
-    st.title("🔎 Deep Dive: Data Filtering & Analysis")
+    st.title("📊 Data Exploration: Filters & Analysis")
 
-    st.markdown("Use the filters below to analyze relationships between key metrics in the COVID-19 vaccination dataset.")
+    # --- Filter 1: Daily vaccinations threshold ---
+    st.subheader("📋 Filter Data by Daily Vaccinations")
+    min_input = st.number_input("Set minimum daily vaccinations", min_value=0, value=1000)
+    st.dataframe(df[df["daily_vaccinations"] > min_input])
 
-    # Filter by ISO code
-    iso_selected = st.selectbox("🌍 Select ISO Country Code", df["iso_code"].unique())
-    filtered_df = df[df["iso_code"] == iso_selected]
+    # ----------------------------
+    # 🔹 UNIVARIATE ANALYSIS (Interactive)
+    # ----------------------------
+    st.subheader("🔹 Univariate Analysis")
+    uni_col = st.selectbox("Select a numeric column for distribution analysis", df.select_dtypes('number').columns)
+    plot_type = st.radio("Select plot type", ["Histogram", "Boxplot"])
 
-    # Filter by date range
-    date_range = st.slider(
-        "📅 Filter by Date Range",
-        min_value=df["date"].min().date(),
-        max_value=df["date"].max().date(),
-        value=(df["date"].min().date(), df["date"].max().date())
+    if plot_type == "Histogram":
+        fig = px.histogram(df, x=uni_col, nbins=30, title=f"Distribution of {uni_col}", color_discrete_sequence=["#636EFA"])
+    else:  # Boxplot
+        fig = px.box(df, x=uni_col, title=f"Boxplot of {uni_col}", color_discrete_sequence=["#EF553B"])
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ----------------------------
+    # 🔸 BIVARIATE ANALYSIS (Interactive)
+    # ----------------------------
+    st.subheader("🔸 Bivariate Analysis")
+    x_var = st.selectbox("Select X-axis (independent variable)", df.select_dtypes('number').columns, key="x_bivar")
+    y_var = st.selectbox("Select Y-axis (dependent variable)", df.select_dtypes('number').columns, key="y_bivar")
+
+    fig2 = px.scatter(
+        df, x=x_var, y=y_var, title=f"{y_var} vs {x_var}",
+        opacity=0.6, color_discrete_sequence=["#00CC96"],
+        labels={x_var: x_var, y_var: y_var}
     )
-    filtered_df = filtered_df[
-        (filtered_df["date"].dt.date >= date_range[0]) & (filtered_df["date"].dt.date <= date_range[1])
-    ]
-
-    # Select columns to compare
-    numeric_columns = df.select_dtypes(include='number').columns.tolist()
-    x_col = st.selectbox("📊 Select X-axis (independent variable)", numeric_columns)
-    y_col = st.selectbox("📈 Select Y-axis (dependent variable)", numeric_columns)
-
-    st.markdown(f"### 📉 Relationship between `{x_col}` and `{y_col}`")
-    fig, ax = plt.subplots()
-    ax.scatter(filtered_df[x_col], filtered_df[y_col], alpha=0.6)
-    ax.set_xlabel(x_col)
-    ax.set_ylabel(y_col)
-    st.pyplot(fig)
-
-    st.subheader("📄 Filtered Data Preview")
-    st.dataframe(filtered_df)
-
+    st.plotly_chart(fig2, use_container_width=True)
 
 # ----------------------------
 # PAGE: ABOUT
@@ -187,6 +229,4 @@ elif page == "About":
     - **daily_people_vaccinated**: Number of new individuals vaccinated (first dose)  
     - **daily_people_vaccinated_per_hundred**: Daily first-dose vaccinations per 100 people  
     """)
-
-
 
