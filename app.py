@@ -90,6 +90,111 @@ if page == "Overview":
         st.dataframe(df)
 
 # ----------------------------
+# PAGE: VISUALIZATIONS
+# ----------------------------
+elif page == "Visualizations":
+    st.title("📈 Interactive Visualizations")
+
+    # Metric cards for quick stats
+    total_vaccinated = df["people_vaccinated"].max()
+    avg_daily_vaccinations = df["daily_vaccinations"].mean()
+    peak_vaccination_day = df.loc[df["daily_vaccinations"].idxmax()]["date"]
+
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-around;">
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Total Vaccinated</h4>
+            <p>{total_vaccinated:,.0f}</p>
+        </div>
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Average Daily Vaccinations</h4>
+            <p>{avg_daily_vaccinations:,.0f}</p>
+        </div>
+        <div style="background-color: #1E1E1E; padding: 20px; color: white; border-radius: 8px;">
+            <h4>Peak Vaccination Day</h4>
+            <p>{peak_vaccination_day}</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Interactive plot: Histogram of daily vaccinations
+    fig = px.histogram(df, x="daily_vaccinations", nbins=30, title="Distribution of Daily Vaccinations")
+    st.plotly_chart(fig)
+
+    # Line chart showing vaccination trends
+    selected_column = st.selectbox("Select a column to plot over time", df.columns.tolist())
+    fig2 = px.line(df, x="date", y=selected_column, title=f"Vaccination Trends: {selected_column}")
+    st.plotly_chart(fig2)
+
+    # Scatter plot: Total vaccinations vs People vaccinated
+    fig3 = px.scatter(df, x="people_vaccinated", y="daily_people_vaccinated", title="Total Vaccinations vs People Vaccinated")
+    st.plotly_chart(fig3)
+
+    # --- New Visualization: Average Daily Vaccinations by Progress Stage ---
+    st.subheader("📊 Vaccination Progress by Stage")
+    fig4 = px.bar(
+        df.groupby("progress_stage")["daily_vaccinations"].mean().reset_index(),
+        x="progress_stage",
+        y="daily_vaccinations",
+        title="Average Daily Vaccinations by Progress Stage",
+        color="progress_stage",
+        color_discrete_sequence=px.colors.qualitative.Plotly
+    )
+    st.plotly_chart(fig4, use_container_width=True)
+
+    # --- New Visualization: Coverage Level vs Daily Vaccinations ---
+    st.subheader("🎯 Coverage Level vs Daily Vaccinations")
+    fig5 = px.box(
+        df,
+        x="coverage_level",
+        y="daily_vaccinations",
+        title="Daily Vaccinations Distribution Across Coverage Levels",
+        color="coverage_level",
+        color_discrete_sequence=px.colors.qualitative.Bold
+    )
+    st.plotly_chart(fig5, use_container_width=True)
+
+    # --- New Visualization: Intensity Level Trend Over Time ---
+    st.subheader("📈 Intensity Level Over Time")
+    fig6 = px.line(
+        df,
+        x="date",
+        y="daily_vaccinations",
+        color="intensity_level",
+        title="Daily Vaccinations Trend by Intensity Level",
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+    st.plotly_chart(fig6, use_container_width=True)
+
+    # Sidebar filters
+    selected_iso = st.selectbox("🌍 Filter by ISO Code", df["iso_code"].unique())
+    st.dataframe(df[df["iso_code"] == selected_iso])
+
+    selected_cols = st.multiselect("🧩 Choose columns to display", df.columns.tolist())
+    if selected_cols:
+        st.dataframe(df[selected_cols])
+
+    date_range = st.select_slider(
+        "📅 Select date range",
+        options=df["date"].dt.strftime('%Y-%m-%d').tolist(),
+        value=(df["date"].dt.strftime('%Y-%m-%d').min(), df["date"].dt.strftime('%Y-%m-%d').max())
+    )
+    st.write(f"Date range selected: {date_range[0]} to {date_range[1]}")
+    filtered_df = df[(df["date"] >= date_range[0]) & (df["date"] <= date_range[1])]
+    st.line_chart(filtered_df.set_index("date")["daily_vaccinations"])
+
+    threshold = st.slider("📊 Filter: Daily vaccinations above", 0, int(df["daily_vaccinations"].max()), 1000)
+    st.dataframe(df[df["daily_vaccinations"] > threshold])
+
+    # --- Download Button ---
+    st.download_button(
+        label="Download Filtered Data",
+        data=filtered_df.to_csv(index=False),
+        file_name="filtered_vaccination_data.csv",
+        mime="text/csv"
+    )
+
+# ----------------------------
 # PAGE: Filters
 # ----------------------------
 elif page == "Filters":
@@ -132,29 +237,39 @@ elif page == "Filters":
 # PAGE: ABOUT
 # ----------------------------
 elif page == "About":
-    st.title("ℹ️ About This App")
+    st.title("💬 About this Dashboard")
     st.markdown("""
-    This dashboard was created as part of the **5DATA004W Data Science Project Lifecycle** coursework at the University of Westminster.
+    This dashboard provides insights into **Sri Lanka's COVID-19 vaccination campaign** using real data from government and public health sources. It includes key statistics, interactive visualizations, and detailed analysis to help you understand the trends and progress of the vaccination effort.
+    
+    **Key Features:**
+    - Overview of the vaccination data, including total people vaccinated, daily vaccination trends, and peak vaccination day.
+    - Interactive charts for visual exploration of the data, such as histograms, scatter plots, and correlation heatmaps.
+    - Data filters for in-depth analysis of different aspects of the vaccination campaign.
+    
+    **Data Source:**
+    The data used in this dashboard is sourced from official government and public health data repositories. Please refer to the data source for up-to-date and detailed information.
+    
+    **Built with Streamlit & Plotly:**
+    This dashboard is built using Streamlit for the web interface and Plotly for interactive visualizations. The app is designed to provide a seamless experience for exploring COVID-19 vaccination data.
+    ### 🧾 Dataset Column Descriptions
 
-    **Features:**
-    - Visualizes COVID-19 vaccination data for Sri Lanka
-    - Provides filters, comparisons, and interactive visuals for data exploration
-    - Enables users to investigate trends and relationships over time
+    - **date**: The date of the vaccination record.
+    - **iso_code**: Country or region code based on ISO standard.
+    - **country**: Name of the country or region.
+    - **daily_vaccinations**: Number of vaccine doses administered on that day.
+    - **people_vaccinated**: Cumulative number of people who received at least one dose.
+    - **people_fully_vaccinated**: Total number of people fully vaccinated (all required doses).
+    - **total_vaccinations**: Running total of all vaccine doses administered.
+    - **daily_people_vaccinated**: Number of new individuals who received their first dose on a given day.
+    - **vaccines**: Type(s) of vaccines used in the country.
+    - **source_name**: Source or organization that provided the data.
+    - **source_website**: URL to the data provider or official source.
+    - **progress_stage**: Stage of the vaccination campaign (e.g., early, mid, late).
+    - **coverage_level**: Level of vaccine coverage in the population (e.g., low, medium, high).
+    - **intensity_level**: Intensity of vaccination activity (e.g., slow, moderate, aggressive).
+    --- 
 
-    **Developer:** *Shahly Fayeek*  
-    **Module Leader:** *Fouzul Hassan*
+    **About the Developer:**
+    - This dashboard was developed by Shahly Fayeek, a passionate data enthusiast and developer focused on making data-driven insights accessible for all.
+    - I am currently studying Business Data Analytics at the University of Westminster.
     """)
-
-    st.subheader("📚 Dataset Field Descriptions")
-    st.markdown("""
-    - **date**: Date of the observation  
-    - **iso_code**: Unique ISO 3166-1 alpha-3 country code  
-    - **people_vaccinated**: Cumulative number of individuals who have received at least one vaccine dose  
-    - **daily_vaccinations_raw**: Raw number of vaccinations reported on that date (may include backlog)  
-    - **daily_vaccinations**: Estimated number of daily vaccinations, cleaned for consistency  
-    - **people_vaccinated_per_hundred**: % of the population vaccinated (at least one dose)  
-    - **daily_vaccinations_per_million**: Number of vaccinations per one million people per day  
-    - **daily_people_vaccinated**: Number of new individuals vaccinated (first dose)  
-    - **daily_people_vaccinated_per_hundred**: Daily first-dose vaccinations per 100 people  
-    """)
-
